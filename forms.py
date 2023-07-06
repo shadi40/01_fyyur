@@ -2,6 +2,21 @@ from datetime import datetime
 from flask_wtf import Form
 from wtforms import StringField, SelectField, SelectMultipleField, DateTimeField, BooleanField
 from wtforms.validators import DataRequired, AnyOf, URL
+from flask_wtf import FlaskForm
+from wtforms import StringField, BooleanField, TextAreaField
+from wtforms.validators import URL
+
+class ArtistForm(FlaskForm):
+    name = StringField('name', validators=[DataRequired()])
+    city = StringField('city', validators=[DataRequired()])
+    state = StringField('state', validators=[DataRequired()])
+    phone = StringField('phone')
+    genres = StringField('genres', validators=[DataRequired()])
+    seeking_venue = BooleanField('seeking_venue')
+    seeking_description = StringField('seeking_description')
+    image_link = StringField('image_link', validators=[URL()])
+    website = StringField('website', validators=[URL()])
+    facebook_link = StringField('facebook_link', validators=[URL()])
 
 class ShowForm(Form):
     artist_id = StringField(
