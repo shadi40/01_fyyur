@@ -15,6 +15,8 @@ from forms import *
 from models import db, Artist, Venue, Show
 from flask_migrate import Migrate
 from babel import dates
+from datetime import datetime
+from sqlalchemy import func
 
 
 #----------------------------------------------------------------------------#
@@ -126,6 +128,22 @@ def show_venue(venue_id):
     if not venue:
         return render_template('errors/404.html')
 
+    # Retrieve the venue's past shows
+    past_shows = db.session.query(Show).join(Artist).filter(
+        Show.venue_id == venue_id,
+        Show.start_time < datetime.now()
+    ).all()
+
+    # Retrieve the venue's upcoming shows
+    upcoming_shows = db.session.query(Show).join(Artist).filter(
+        Show.venue_id == venue_id,
+        Show.start_time >= datetime.now()
+    ).all()
+
+    # Calculate the counts of past and upcoming shows
+    past_shows_count = len(past_shows)
+    upcoming_shows_count = len(upcoming_shows)
+
     # Create the response data
     data = {
         "id": venue.id,
@@ -141,14 +159,36 @@ def show_venue(venue_id):
         "image_link": venue.image_link,
         "past_shows": [],  # Placeholder for now, update as needed
         "upcoming_shows": [],  # Placeholder for now, update as needed
-        "past_shows_count": 0,  # Placeholder for now, update as needed
-        "upcoming_shows_count": 0  # Placeholder for now, update as needed
+        "past_shows_count": past_shows_count,
+        "upcoming_shows_count": upcoming_shows_count
     }
     
     if hasattr(venue, 'seeking_description'):
         data['seeking_description'] = venue.seeking_description
     else:
         data['seeking_description'] = None
+
+    # Populate the past shows data
+    for show in past_shows:
+        artist = show.artist
+        past_show = {
+            "artist_id": artist.id,
+            "artist_name": artist.name,
+            "artist_image_link": artist.image_link,
+            "start_time": show.start_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        }
+        data["past_shows"].append(past_show)
+
+    # Populate the upcoming shows data
+    for show in upcoming_shows:
+        artist = show.artist
+        upcoming_show = {
+            "artist_id": artist.id,
+            "artist_name": artist.name,
+            "artist_image_link": artist.image_link,
+            "start_time": show.start_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        }
+        data["upcoming_shows"].append(upcoming_show)
 
     return render_template('pages/show_venue.html', venue=data)
 
@@ -172,6 +212,7 @@ def create_venue_submission():
     genres = request.form.get('genres')
     image_link = request.form.get('image_link')
     facebook_link = request.form.get('facebook_link')
+    
 
     try:
         # Create a new Venue object
@@ -305,23 +346,27 @@ def show_artist(artist_id):
             Show.start_time >= datetime.now()
         ).all()
 
+        # Calculate the counts of past and upcoming shows
+        past_shows_count = len(past_shows)
+        upcoming_shows_count = len(upcoming_shows)
+
         # Convert the artist data to a dictionary
         data = {
-        "id": artist.id,
-        "name": artist.name,
-        "genres": artist.genres.split(',') if artist.genres else [],
-        "city": artist.city,
-        "state": artist.state,
-        "phone": artist.phone,
-        "website": artist.website,
-        "facebook_link": artist.facebook_link,
-        "seeking_venue": artist.seeking_venue,
-        "seeking_description": artist.seeking_description,
-        "image_link": artist.image_link,
-        "past_shows": [],  # Placeholder for now, update as needed
-        "upcoming_shows": [],  # Placeholder for now, update as needed
-        "past_shows_count": 0,  # Placeholder for now, update as needed
-        "upcoming_shows_count": 0,  # Placeholder for now, update as needed
+            "id": artist.id,
+            "name": artist.name,
+            "genres": artist.genres.split(',') if artist.genres else [],
+            "city": artist.city,
+            "state": artist.state,
+            "phone": artist.phone,
+            "website": artist.website,
+            "facebook_link": artist.facebook_link,
+            "seeking_venue": artist.seeking_venue,
+            "seeking_description": artist.seeking_description,
+            "image_link": artist.image_link,
+            "past_shows": [],  # Placeholder for now, update as needed
+            "upcoming_shows": [],  # Placeholder for now, update as needed
+            "past_shows_count": past_shows_count,
+            "upcoming_shows_count": upcoming_shows_count,
         }
 
         # Populate the past shows data
@@ -379,7 +424,6 @@ def edit_artist(artist_id):
     else:
         flash('Artist not found')
         return redirect(url_for('artists'))
-
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
@@ -488,7 +532,7 @@ def create_artist_submission():
     state = request.form['state']
     phone = request.form['phone']
     genres = request.form.getlist('genres')
-    website = request.form.get('website', '')  # Use get() with a default value
+    website = request.form.get('website', '')  # Use get() with a default value 
     facebook_link = request.form['facebook_link']
     seeking_venue = 'seeking_venue' in request.form
     seeking_description = request.form['seeking_description']
